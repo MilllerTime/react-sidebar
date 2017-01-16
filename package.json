@@ -1,7 +1,7 @@
 {
   "name": "react-sidebar",
-  "version": "2.2.1",
-  "author": "Paulus Schoutsen <Paulus@PaulusSchoutsen.nl>",
+  "version": "2.2.2",
+  "author": "Caleb Miller <caleb@caleb-miller.com>",
   "description": "A sidebar component for React.",
   "main": "dist-modules/index.js",
   "jsnest:main": "src/index.js",
@@ -18,12 +18,12 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git://github.com/balloob/react-sidebar.git"
+    "url": "git://github.com/MilllerTime/react-sidebar.git"
   },
   "license": "MIT",
   "peerDependencies": {
-    "react": ">=0.14.0",
-    "react-dom": ">=0.14.0"
+    "react": ">=15.0.0",
+    "react-dom": ">=15.0.0"
   },
   "devDependencies": {
     "babel-cli": "^6.3.17",
@@ -36,8 +36,8 @@
     "eslint": "<2.3.0",
     "eslint-config-airbnb": "^2.1.1",
     "eslint-plugin-react": "^3.13.1",
-    "react": ">=0.14.0",
-    "react-dom": ">=0.14.0",
+    "react": ">=14.0.0",
+    "react-dom": ">=14.0.0",
     "webpack": "^1.12.9",
     "webpack-dev-server": "^1.14.0"
   }
