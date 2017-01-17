@@ -22,7 +22,13 @@ function _possibleConstructorReturn(self, call) { if (!self) { throw new Referen
 
 function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; }
 
-var CANCEL_DISTANCE_ON_SCROLL = 20;
+// Default animation duration (in seconds)
+var DURATION = 0.3;
+// The distance sidebar must be dragged to show intent of opening/closing
+var DRAG_INTENT_DISTANCE = 24;
+// Number of touch points to average for drag velocity calculation
+// Must be at least 2 in order to compute a delta, higher values smooth out velocity readings
+var TOUCH_COUNT = 4;
 
 var defaultStyles = {
   root: {
@@ -36,8 +42,11 @@ var defaultStyles = {
     WebkitOverflowScrolling: 'touch',
     top: 0,
     bottom: 0,
-    transition: 'transform .3s ease-out',
-    WebkitTransition: '-webkit-transform .3s ease-out',
+    visibility: 'hidden',
+    transitionProperty: 'transform, visibility',
+    WebkitTransitionProperty: '-webkit-transform, visibility',
+    transitionDuration: DURATION + 's',
+    transitionTimingFunction: 'ease-out',
     willChange: 'transform',
     overflowY: 'auto'
   },
@@ -50,7 +59,9 @@ var defaultStyles = {
     bottom: 0,
     opacity: 0,
     visibility: 'hidden',
-    transition: 'opacity .3s ease-out, visibility .3s ease-out',
+    transitionProperty: 'opacity, visibility',
+    transitionDuration: DURATION + 's',
+    transitionTimingFunction: 'ease-out',
     backgroundColor: 'rgba(0,0,0,.3)'
   },
   dragHandle: {
@@ -77,15 +88,28 @@ var Sidebar = function (_React$Component) {
       touchCurrentX: null,
       touchCurrentY: null,
 
+      // whether sidebar dragging action should override other touch actions
+      dragLock: false,
+
       // if touch is supported by the browser
       dragSupported: false
     };
 
+    // Track touch positions over time (isn't used for rendering, doesn't need to be in state)
+    // Always reset on touch end.
+    // Array will contain objects of format { x:int, time:int } where `x` is a pixel coordinate,
+    // and `time` is the ms since last movement.
+    _this.touchPositions = [];
+
+    // Transition duration override with expiry time. Set in onTouchEnd handler.
+    // Render method will check this, but it's not needed for rendering.
+    _this.durationOverride = null;
+
+    // Bind instance methods
     _this.overlayClicked = _this.overlayClicked.bind(_this);
     _this.onTouchStart = _this.onTouchStart.bind(_this);
     _this.onTouchMove = _this.onTouchMove.bind(_this);
     _this.onTouchEnd = _this.onTouchEnd.bind(_this);
-    _this.onScroll = _this.onScroll.bind(_this);
     return _this;
   }
 
@@ -102,26 +126,59 @@ var Sidebar = function (_React$Component) {
       // filter out if a user starts swiping with a second finger
       if (!this.isTouching()) {
         var touch = ev.targetTouches[0];
+        var currentX = touch.clientX;
+        var currentY = touch.clientY;
         this.setState({
           touchIdentifier: touch.identifier,
-          touchStartX: touch.clientX,
-          touchStartY: touch.clientY,
-          touchCurrentX: touch.clientX,
-          touchCurrentY: touch.clientY
+          touchStartX: currentX,
+          touchStartY: currentY,
+          touchCurrentX: currentX,
+          touchCurrentY: currentY
         });
+
+        this.touchPositions.push({ x: currentX, time: Date.now() });
       }
     }
   }, {
     key: 'onTouchMove',
     value: function onTouchMove(ev) {
       if (this.isTouching()) {
-        for (var ind = 0; ind < ev.targetTouches.length; ind++) {
+        for (var ind = ev.targetTouches.length - 1; ind >= 0; ind--) {
+          var touch = ev.targetTouches[ind];
           // we only care about the finger that we are tracking
-          if (ev.targetTouches[ind].identifier === this.state.touchIdentifier) {
-            this.setState({
-              touchCurrentX: ev.targetTouches[ind].clientX,
-              touchCurrentY: ev.targetTouches[ind].clientY
-            });
+          if (touch.identifier === this.state.touchIdentifier) {
+            var currentX = touch.clientX;
+            var currentY = touch.clientY;
+
+            var nextState = {
+              touchCurrentX: currentX,
+              touchCurrentY: currentY
+            };
+
+            this.touchPositions.push({ x: currentX, time: Date.now() });
+            if (this.touchPositions.length > TOUCH_COUNT) {
+              this.touchPositions.shift();
+            }
+
+            var deltaX = Math.abs(currentX - this.state.touchStartX);
+            var deltaY = Math.abs(currentY - this.state.touchStartY);
+
+            // If user drags sidebar far enough horizontally without as much vertical movement, we'll "lock" the drag
+            if (deltaX >= DRAG_INTENT_DISTANCE && deltaX >= deltaY) {
+              nextState.dragLock = true;
+            }
+            // If user drags too far vertically, we'll cancel the drag
+            else if (!this.state.dragLock && deltaY >= DRAG_INTENT_DISTANCE) {
+                this.onTouchEnd();
+                break;
+              }
+
+            // If drag was previously locked, prevent touch movement from doing other things (like scrolling)
+            if (this.state.dragLock) {
+              ev.preventDefault();
+            }
+
+            this.setState(nextState);
             break;
           }
         }
@@ -135,7 +192,30 @@ var Sidebar = function (_React$Component) {
         var touchWidth = this.touchSidebarWidth();
 
         if (this.props.open && touchWidth < this.props.width - this.props.dragToggleDistance || !this.props.open && touchWidth > this.props.dragToggleDistance) {
-          this.props.onSetOpen(!this.props.open);
+          // Compute velocity (px/s)
+          var velocity = this.dragVelocity();
+          // Determine open state from velocity
+          var shouldOpen = this.props.pullRight ? velocity < 0 : velocity > 0;
+          if (this.props.open !== shouldOpen) {
+            this.props.onSetOpen(shouldOpen);
+          }
+
+          // Derive speed from velocity and compute override transition duration if needed
+          // This will give a feeling of momentum when quickly flicking drawer
+          var speed = Math.abs(velocity);
+          var minSpeed = 500;
+          var maxSpeed = 2000;
+          var minDuration = 0.1; // seconds
+          if (speed > minSpeed) {
+            var adjustedSpeed = Math.min(maxSpeed, speed) - minSpeed;
+            var multiplier = 1 - adjustedSpeed / (maxSpeed - minSpeed);
+            var scaledDuration = Math.max(minDuration, DURATION * multiplier);
+            this.durationOverride = {
+              duration: scaledDuration,
+              // Duration override should only be effective as long as transition lasts
+              expiry: Date.now() + scaledDuration * 1000
+            };
+          }
         }
 
         this.setState({
@@ -143,42 +223,13 @@ var Sidebar = function (_React$Component) {
           touchStartX: null,
           touchStartY: null,
           touchCurrentX: null,
-          touchCurrentY: null
+          touchCurrentY: null,
+          dragLock: false,
+          dragVelocity: 0
         });
+
+        this.touchPositions = [];
       }
-    }
-
-    // This logic helps us prevents the user from sliding the sidebar horizontally
-    // while scrolling the sidebar vertically. When a scroll event comes in, we're
-    // cancelling the ongoing gesture if it did not move horizontally much.
-
-  }, {
-    key: 'onScroll',
-    value: function onScroll() {
-      if (this.isTouching() && this.inCancelDistanceOnScroll()) {
-        this.setState({
-          touchIdentifier: null,
-          touchStartX: null,
-          touchStartY: null,
-          touchCurrentX: null,
-          touchCurrentY: null
-        });
-      }
-    }
-
-    // True if the on going gesture X distance is less than the cancel distance
-
-  }, {
-    key: 'inCancelDistanceOnScroll',
-    value: function inCancelDistanceOnScroll() {
-      var cancelDistanceOnScroll = void 0;
-
-      if (this.props.pullRight) {
-        cancelDistanceOnScroll = Math.abs(this.state.touchCurrentX - this.state.touchStartX) < CANCEL_DISTANCE_ON_SCROLL;
-      } else {
-        cancelDistanceOnScroll = Math.abs(this.state.touchStartX - this.state.touchCurrentX) < CANCEL_DISTANCE_ON_SCROLL;
-      }
-      return cancelDistanceOnScroll;
     }
   }, {
     key: 'isTouching',
@@ -229,6 +280,28 @@ var Sidebar = function (_React$Component) {
       }
       return Math.min(touchCurrentX, width);
     }
+
+    // calculate velocity of sidebar (based on touch data)
+    // unit = pixels / second.
+
+  }, {
+    key: 'dragVelocity',
+    value: function dragVelocity() {
+      var deltaCount = this.touchPositions.length - 1;
+      if (deltaCount < 1) {
+        return 0;
+      }
+
+      var velocitySum = 0;
+      // Don't loop to zero, as we'll always be comparing the current index to the previous
+      for (var i = deltaCount; i > 0; i--) {
+        var curr = this.touchPositions[i];
+        var last = this.touchPositions[i - 1];
+        velocitySum += (curr.x - last.x) / ((curr.time - last.time) / 1000);
+      }
+
+      return velocitySum / deltaCount;
+    }
   }, {
     key: 'render',
     value: function render() {
@@ -251,46 +324,42 @@ var Sidebar = function (_React$Component) {
       if (this.props.pullRight) {
         rootProps.style.right = 0;
         sidebarStyle.right = 0;
-        sidebarStyle.transform = 'translateX(100%)';
-        sidebarStyle.WebkitTransform = 'translateX(100%)';
+        sidebarStyle.transform = 'translate3d(100%, 0, 0)';
+        sidebarStyle.WebkitTransform = 'translate3d(100%, 0, 0)';
         if (this.props.shadow) {
-          sidebarStyle.boxShadow = '-2px 2px 4px rgba(0, 0, 0, 0.15)';
+          sidebarStyle.boxShadow = '-4px 0px 24px rgba(0, 0, 0, 0.16)';
         }
       } else {
         rootProps.style.left = 0;
         sidebarStyle.left = 0;
-        sidebarStyle.transform = 'translateX(-100%)';
-        sidebarStyle.WebkitTransform = 'translateX(-100%)';
+        sidebarStyle.transform = 'translate3d(-100%, 0, 0)';
+        sidebarStyle.WebkitTransform = 'translate3d(-100%, 0, 0)';
         if (this.props.shadow) {
-          sidebarStyle.boxShadow = '2px 2px 4px rgba(0, 0, 0, 0.15)';
+          sidebarStyle.boxShadow = '4px 0px 24px rgba(0, 0, 0, 0.16)';
         }
       }
 
       if (isTouching) {
         var percentage = this.touchSidebarWidth() / this.props.width;
 
-        // slide open to what we dragged
+        // slide open to what we dragged (and ensure visibility)
+        sidebarStyle.visibility = 'visible';
         if (this.props.pullRight) {
-          sidebarStyle.transform = 'translateX(' + (1 - percentage) * 100 + '%)';
-          sidebarStyle.WebkitTransform = 'translateX(' + (1 - percentage) * 100 + '%)';
+          sidebarStyle.transform = 'translate3d(' + (1 - percentage) * 100 + '%, 0, 0)';
+          sidebarStyle.WebkitTransform = 'translate3d(' + (1 - percentage) * 100 + '%, 0, 0)';
         } else {
-          sidebarStyle.transform = 'translateX(-' + (1 - percentage) * 100 + '%)';
-          sidebarStyle.WebkitTransform = 'translateX(-' + (1 - percentage) * 100 + '%)';
+          sidebarStyle.transform = 'translate3d(-' + (1 - percentage) * 100 + '%, 0, 0)';
+          sidebarStyle.WebkitTransform = 'translate3d(-' + (1 - percentage) * 100 + '%, 0, 0)';
         }
 
         // fade overlay to match distance of drag
         overlayStyle.opacity = percentage;
         overlayStyle.visibility = 'visible';
-      } else if (this.props.docked) {
-        // show sidebar
-        if (this.props.width !== 0) {
-          sidebarStyle.transform = 'translateX(0%)';
-          sidebarStyle.WebkitTransform = 'translateX(0%)';
-        }
       } else if (this.props.open) {
         // slide open sidebar
-        sidebarStyle.transform = 'translateX(0%)';
-        sidebarStyle.WebkitTransform = 'translateX(0%)';
+        sidebarStyle.visibility = 'visible';
+        sidebarStyle.transform = 'translate3d(0%, 0, 0)';
+        sidebarStyle.WebkitTransform = 'translate3d(0%, 0, 0)';
 
         // show overlay
         overlayStyle.opacity = 1;
@@ -298,9 +367,11 @@ var Sidebar = function (_React$Component) {
       }
 
       if (isTouching || !this.props.transitions) {
-        sidebarStyle.transition = 'none';
-        sidebarStyle.WebkitTransition = 'none';
-        overlayStyle.transition = 'none';
+        sidebarStyle.transitionProperty = sidebarStyle.WebkitTransitionProperty = overlayStyle.transitionProperty = 'none';
+      }
+
+      if (this.durationOverride && this.durationOverride.expiry >= Date.now()) {
+        sidebarStyle.transitionDuration = overlayStyle.transitionDuration = this.durationOverride.duration + 's';
       }
 
       if (useTouch) {
@@ -309,7 +380,6 @@ var Sidebar = function (_React$Component) {
           rootProps.onTouchMove = this.onTouchMove;
           rootProps.onTouchEnd = this.onTouchEnd;
           rootProps.onTouchCancel = this.onTouchEnd;
-          rootProps.onScroll = this.onScroll;
         } else {
           var dragHandleStyle = _extends({}, defaultStyles.dragHandle, this.props.styles.dragHandle);
           dragHandleStyle.width = this.props.touchHandleWidth;
@@ -373,9 +443,6 @@ Sidebar.propTypes = {
   // width of sidebar
   width: _react2.default.PropTypes.number,
 
-  // boolean if sidebar should be docked
-  docked: _react2.default.PropTypes.bool,
-
   // boolean if sidebar should slide open
   open: _react2.default.PropTypes.bool,
 
@@ -403,7 +470,6 @@ Sidebar.propTypes = {
 
 Sidebar.defaultProps = {
   width: 300,
-  docked: false,
   open: false,
   transitions: true,
   touch: true,
