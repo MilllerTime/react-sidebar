@@ -208,7 +208,8 @@ class Sidebar extends React.Component {
       if (this.props.shadow) {
         sidebarStyle.boxShadow = '-4px 0px 24px rgba(0, 0, 0, 0.16)';
       }
-    } else {
+    }
+    else {
       rootProps.style.left = 0;
       sidebarStyle.left = 0;
       sidebarStyle.transform = 'translate3d(-100%, 0, 0)';
@@ -226,7 +227,8 @@ class Sidebar extends React.Component {
       if (this.props.pullRight) {
         sidebarStyle.transform = `translate3d(${(1 - percentage) * 100}%, 0, 0)`;
         sidebarStyle.WebkitTransform = `translate3d(${(1 - percentage) * 100}%, 0, 0)`;
-      } else {
+      }
+      else {
         sidebarStyle.transform = `translate3d(-${(1 - percentage) * 100}%, 0, 0)`;
         sidebarStyle.WebkitTransform = `translate3d(-${(1 - percentage) * 100}%, 0, 0)`;
       }
@@ -234,14 +236,8 @@ class Sidebar extends React.Component {
       // fade overlay to match distance of drag
       overlayStyle.opacity = percentage;
       overlayStyle.visibility = 'visible';
-    } else if (this.props.docked) {
-      // show sidebar
-      if (this.props.width !== 0) {
-        sidebarStyle.visibility = 'visible';
-        sidebarStyle.transform = `translate3d(0%, 0, 0)`;
-        sidebarStyle.WebkitTransform = `translate3d(0%, 0, 0)`;
-      }
-    } else if (this.props.open) {
+    }
+    else if (this.props.open) {
       // slide open sidebar
       sidebarStyle.visibility = 'visible';
       sidebarStyle.transform = `translate3d(0%, 0, 0)`;
@@ -264,14 +260,16 @@ class Sidebar extends React.Component {
         rootProps.onTouchMove = this.onTouchMove;
         rootProps.onTouchEnd = this.onTouchEnd;
         rootProps.onTouchCancel = this.onTouchEnd;
-      } else {
+      }
+      else {
         const dragHandleStyle = {...defaultStyles.dragHandle, ...this.props.styles.dragHandle};
         dragHandleStyle.width = this.props.touchHandleWidth;
 
         // dragHandleStyle right/left
         if (this.props.pullRight) {
           dragHandleStyle.right = 0;
-        } else {
+        }
+        else {
           dragHandleStyle.left = 0;
         }
 
@@ -323,9 +321,6 @@ Sidebar.propTypes = {
   // width of sidebar
   width: React.PropTypes.number,
 
-  // boolean if sidebar should be docked
-  docked: React.PropTypes.bool,
-
   // boolean if sidebar should slide open
   open: React.PropTypes.bool,
 
@@ -353,7 +348,6 @@ Sidebar.propTypes = {
 
 Sidebar.defaultProps = {
   width: 300,
-  docked: false,
   open: false,
   transitions: true,
   touch: true,
