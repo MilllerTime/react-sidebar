@@ -1,6 +1,6 @@
 import React from 'react';
 
-const CANCEL_DISTANCE_ON_SCROLL = 20;
+const DRAG_INTENT_DISTANCE = 24;
 
 const defaultStyles = {
   root: {
@@ -18,7 +18,7 @@ const defaultStyles = {
     transition: 'transform .3s ease-out, visibility .3s ease-out',
     WebkitTransition: '-webkit-transform .3s ease-out, visibility .3s ease-out',
     willChange: 'transform',
-    overflowY: 'auto',
+    overflowY: 'auto'
   },
   overlay: {
     zIndex: 1,
@@ -30,14 +30,14 @@ const defaultStyles = {
     opacity: 0,
     visibility: 'hidden',
     transition: 'opacity .3s ease-out, visibility .3s ease-out',
-    backgroundColor: 'rgba(0,0,0,.3)',
+    backgroundColor: 'rgba(0,0,0,.3)'
   },
   dragHandle: {
     zIndex: 1,
     position: 'fixed',
     top: 0,
-    bottom: 0,
-  },
+    bottom: 0
+  }
 };
 
 class Sidebar extends React.Component {
@@ -52,8 +52,11 @@ class Sidebar extends React.Component {
       touchCurrentX: null,
       touchCurrentY: null,
 
+      // whether sidebar dragging action should override other touch actions
+      dragLock: false,
+
       // if touch is supported by the browser
-      dragSupported: false,
+      dragSupported: false
     };
 
     this.overlayClicked = this.overlayClicked.bind(this);
@@ -64,7 +67,7 @@ class Sidebar extends React.Component {
 
   componentDidMount() {
     this.setState({
-      dragSupported: typeof window === 'object' && 'ontouchstart' in window,
+      dragSupported: typeof window === 'object' && 'ontouchstart' in window
     });
   }
 
@@ -77,20 +80,44 @@ class Sidebar extends React.Component {
         touchStartX: touch.clientX,
         touchStartY: touch.clientY,
         touchCurrentX: touch.clientX,
-        touchCurrentY: touch.clientY,
+        touchCurrentY: touch.clientY
       });
     }
   }
 
   onTouchMove(ev) {
     if (this.isTouching()) {
-      for (let ind = 0; ind < ev.targetTouches.length; ind++) {
+      for (let ind = ev.targetTouches.length - 1; ind >= 0; ind--) {
+        const touch = ev.targetTouches[ind];
         // we only care about the finger that we are tracking
-        if (ev.targetTouches[ind].identifier === this.state.touchIdentifier) {
-          this.setState({
-            touchCurrentX: ev.targetTouches[ind].clientX,
-            touchCurrentY: ev.targetTouches[ind].clientY,
-          });
+        if (touch.identifier === this.state.touchIdentifier) {
+          const currentX = touch.clientX;
+          const currentY = touch.clientY;
+
+          const nextState = {
+            touchCurrentX: currentX,
+            touchCurrentY: currentY
+          };
+
+          const deltaX = Math.abs(currentX - this.state.touchStartX);
+          const deltaY = Math.abs(currentY - this.state.touchStartY);
+
+          // If user drags sidebar far enough horizontally without as much vertical movement, we'll "lock" the drag
+          if (deltaX >= DRAG_INTENT_DISTANCE && deltaX >= deltaY) {
+            nextState.dragLock = true;
+          }
+          // If user drags too far vertically, we'll cancel the drag
+          else if (!this.state.dragLock && deltaY >= DRAG_INTENT_DISTANCE) {
+            this.onTouchEnd();
+            break;
+          }
+
+          // If drag was previously locked, prevent touch movement from doing other things (like scrolling)
+          if (this.state.dragLock) {
+            ev.preventDefault();
+          }
+
+          this.setState(nextState);
           break;
         }
       }
@@ -113,6 +140,7 @@ class Sidebar extends React.Component {
         touchStartY: null,
         touchCurrentX: null,
         touchCurrentY: null,
+        dragLock: false
       });
     }
   }
@@ -162,7 +190,7 @@ class Sidebar extends React.Component {
     const isTouching = this.isTouching();
     const rootProps = {
       className: this.props.rootClassName,
-      style: {...defaultStyles.root, ...this.props.styles.root},
+      style: {...defaultStyles.root, ...this.props.styles.root}
     };
     let dragHandle;
 
@@ -277,7 +305,7 @@ Sidebar.propTypes = {
     root: React.PropTypes.object,
     sidebar: React.PropTypes.object,
     overlay: React.PropTypes.object,
-    dragHandle: React.PropTypes.object,
+    dragHandle: React.PropTypes.object
   }),
 
   // root component optional class
@@ -320,7 +348,7 @@ Sidebar.propTypes = {
   dragToggleDistance: React.PropTypes.number,
 
   // callback called when the overlay is clicked
-  onSetOpen: React.PropTypes.func,
+  onSetOpen: React.PropTypes.func
 };
 
 Sidebar.defaultProps = {
@@ -334,7 +362,7 @@ Sidebar.defaultProps = {
   shadow: true,
   dragToggleDistance: 30,
   onSetOpen: () => {},
-  styles: {},
+  styles: {}
 };
 
 export default Sidebar;
