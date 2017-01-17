@@ -1,6 +1,12 @@
 import React from 'react';
 
+// Default animation duration (in seconds)
+const DURATION = 0.3;
+// The distance sidebar must be dragged to show intent of opening/closing
 const DRAG_INTENT_DISTANCE = 24;
+// Number of touch points to average for drag velocity calculation
+// Must be at least 2 in order to compute a delta, higher values smooth out velocity readings
+const TOUCH_COUNT = 4;
 
 const defaultStyles = {
   root: {
@@ -15,8 +21,10 @@ const defaultStyles = {
     top: 0,
     bottom: 0,
     visibility: 'hidden',
-    transition: 'transform .3s ease-out, visibility .3s ease-out',
-    WebkitTransition: '-webkit-transform .3s ease-out, visibility .3s ease-out',
+    transitionProperty: 'transform, visibility',
+    WebkitTransitionProperty: '-webkit-transform, visibility',
+    transitionDuration: `${DURATION}s`,
+    transitionTimingFunction: 'ease-out',
     willChange: 'transform',
     overflowY: 'auto'
   },
@@ -29,7 +37,9 @@ const defaultStyles = {
     bottom: 0,
     opacity: 0,
     visibility: 'hidden',
-    transition: 'opacity .3s ease-out, visibility .3s ease-out',
+    transitionProperty: 'opacity, visibility',
+    transitionDuration: `${DURATION}s`,
+    transitionTimingFunction: 'ease-out',
     backgroundColor: 'rgba(0,0,0,.3)'
   },
   dragHandle: {
@@ -59,6 +69,17 @@ class Sidebar extends React.Component {
       dragSupported: false
     };
 
+    // Track touch positions over time (isn't used for rendering, doesn't need to be in state)
+    // Always reset on touch end.
+    // Array will contain objects of format { x:int, time:int } where `x` is a pixel coordinate,
+    // and `time` is the ms since last movement.
+    this.touchPositions = [];
+
+    // Transition duration override with expiry time. Set in onTouchEnd handler.
+    // Render method will check this, but it's not needed for rendering.
+    this.durationOverride = null;
+
+    // Bind instance methods
     this.overlayClicked = this.overlayClicked.bind(this);
     this.onTouchStart = this.onTouchStart.bind(this);
     this.onTouchMove = this.onTouchMove.bind(this);
@@ -75,13 +96,17 @@ class Sidebar extends React.Component {
     // filter out if a user starts swiping with a second finger
     if (!this.isTouching()) {
       const touch = ev.targetTouches[0];
+      const currentX = touch.clientX;
+      const currentY = touch.clientY;
       this.setState({
         touchIdentifier: touch.identifier,
-        touchStartX: touch.clientX,
-        touchStartY: touch.clientY,
-        touchCurrentX: touch.clientX,
-        touchCurrentY: touch.clientY
+        touchStartX: currentX,
+        touchStartY: currentY,
+        touchCurrentX: currentX,
+        touchCurrentY: currentY
       });
+
+      this.touchPositions.push({ x: currentX, time: Date.now() });
     }
   }
 
@@ -98,6 +123,11 @@ class Sidebar extends React.Component {
             touchCurrentX: currentX,
             touchCurrentY: currentY
           };
+
+          this.touchPositions.push({ x: currentX, time: Date.now() });
+          if (this.touchPositions.length > TOUCH_COUNT) {
+            this.touchPositions.shift();
+          }
 
           const deltaX = Math.abs(currentX - this.state.touchStartX);
           const deltaY = Math.abs(currentY - this.state.touchStartY);
@@ -130,8 +160,32 @@ class Sidebar extends React.Component {
       const touchWidth = this.touchSidebarWidth();
 
       if (this.props.open && touchWidth < this.props.width - this.props.dragToggleDistance ||
-          !this.props.open && touchWidth > this.props.dragToggleDistance) {
-        this.props.onSetOpen(!this.props.open);
+          !this.props.open && touchWidth > this.props.dragToggleDistance)
+      {
+        // Compute velocity (px/s)
+        const velocity = this.dragVelocity();
+        // Determine open state from velocity
+        const shouldOpen = this.props.pullRight ? velocity < 0 : velocity > 0;
+        if (this.props.open !== shouldOpen) {
+          this.props.onSetOpen(shouldOpen);
+        }
+
+        // Derive speed from velocity and compute override transition duration if needed
+        // This will give a feeling of momentum when quickly flicking drawer
+        const speed = Math.abs(velocity);
+        const minSpeed = 500;
+        const maxSpeed = 2000;
+        const minDuration = 0.1; // seconds
+        if (speed > minSpeed) {
+          const adjustedSpeed = Math.min(maxSpeed, speed) - minSpeed;
+          const multiplier = 1 - adjustedSpeed / (maxSpeed - minSpeed);
+          const scaledDuration = Math.max(minDuration, DURATION * multiplier);
+          this.durationOverride = {
+            duration: scaledDuration,
+            // Duration override should only be effective as long as transition lasts
+            expiry: Date.now() + scaledDuration * 1000
+          };
+        }
       }
 
       this.setState({
@@ -140,8 +194,11 @@ class Sidebar extends React.Component {
         touchStartY: null,
         touchCurrentX: null,
         touchCurrentY: null,
-        dragLock: false
+        dragLock: false,
+        dragVelocity: 0
       });
+
+      this.touchPositions = [];
     }
   }
 
@@ -181,6 +238,26 @@ class Sidebar extends React.Component {
       return width - touchStartX + touchCurrentX;
     }
     return Math.min(touchCurrentX, width);
+  }
+
+
+  // calculate velocity of sidebar (based on touch data)
+  // unit = pixels / second.
+  dragVelocity() {
+    const deltaCount = this.touchPositions.length - 1;
+    if (deltaCount < 1) {
+      return 0;
+    }
+
+    let velocitySum = 0;
+    // Don't loop to zero, as we'll always be comparing the current index to the previous
+    for (let i = deltaCount; i > 0; i--) {
+      const curr = this.touchPositions[i];
+      const last = this.touchPositions[i-1];
+      velocitySum += (curr.x - last.x) / ((curr.time - last.time) / 1000);
+    }
+
+    return velocitySum / deltaCount;
   }
 
   render() {
@@ -249,9 +326,14 @@ class Sidebar extends React.Component {
     }
 
     if (isTouching || !this.props.transitions) {
-      sidebarStyle.transition = 'none';
-      sidebarStyle.WebkitTransition = 'none';
-      overlayStyle.transition = 'none';
+      sidebarStyle.transitionProperty =
+        sidebarStyle.WebkitTransitionProperty =
+        overlayStyle.transitionProperty = 'none';
+    }
+
+    if (this.durationOverride && this.durationOverride.expiry >= Date.now()) {
+      sidebarStyle.transitionDuration = 
+        overlayStyle.transitionDuration = this.durationOverride.duration + 's';
     }
 
     if (useTouch) {
