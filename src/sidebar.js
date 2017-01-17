@@ -60,7 +60,6 @@ class Sidebar extends React.Component {
     this.onTouchStart = this.onTouchStart.bind(this);
     this.onTouchMove = this.onTouchMove.bind(this);
     this.onTouchEnd = this.onTouchEnd.bind(this);
-    this.onScroll = this.onScroll.bind(this);
   }
 
   componentDidMount() {
@@ -116,35 +115,6 @@ class Sidebar extends React.Component {
         touchCurrentY: null,
       });
     }
-  }
-
-  // This logic helps us prevents the user from sliding the sidebar horizontally
-  // while scrolling the sidebar vertically. When a scroll event comes in, we're
-  // cancelling the ongoing gesture if it did not move horizontally much.
-  onScroll() {
-    if (this.isTouching() && this.inCancelDistanceOnScroll()) {
-      this.setState({
-        touchIdentifier: null,
-        touchStartX: null,
-        touchStartY: null,
-        touchCurrentX: null,
-        touchCurrentY: null,
-      });
-    }
-  }
-
-  // True if the on going gesture X distance is less than the cancel distance
-  inCancelDistanceOnScroll() {
-    let cancelDistanceOnScroll;
-
-    if (this.props.pullRight) {
-      cancelDistanceOnScroll = Math.abs(this.state.touchCurrentX - this.state.touchStartX) <
-                                        CANCEL_DISTANCE_ON_SCROLL;
-    } else {
-      cancelDistanceOnScroll = Math.abs(this.state.touchStartX - this.state.touchCurrentX) <
-                                        CANCEL_DISTANCE_ON_SCROLL;
-    }
-    return cancelDistanceOnScroll;
   }
 
   isTouching() {
@@ -266,7 +236,6 @@ class Sidebar extends React.Component {
         rootProps.onTouchMove = this.onTouchMove;
         rootProps.onTouchEnd = this.onTouchEnd;
         rootProps.onTouchCancel = this.onTouchEnd;
-        rootProps.onScroll = this.onScroll;
       } else {
         const dragHandleStyle = {...defaultStyles.dragHandle, ...this.props.styles.dragHandle};
         dragHandleStyle.width = this.props.touchHandleWidth;
