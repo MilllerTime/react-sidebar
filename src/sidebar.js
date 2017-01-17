@@ -14,8 +14,9 @@ const defaultStyles = {
     WebkitOverflowScrolling: 'touch',
     top: 0,
     bottom: 0,
-    transition: 'transform .3s ease-out',
-    WebkitTransition: '-webkit-transform .3s ease-out',
+    visibility: 'hidden',
+    transition: 'transform .3s ease-out, visibility .3s ease-out',
+    WebkitTransition: '-webkit-transform .3s ease-out, visibility .3s ease-out',
     willChange: 'transform',
     overflowY: 'auto',
   },
@@ -207,7 +208,7 @@ class Sidebar extends React.Component {
       sidebarStyle.transform = 'translate3d(100%, 0, 0)';
       sidebarStyle.WebkitTransform = 'translate3d(100%, 0, 0)';
       if (this.props.shadow) {
-        sidebarStyle.boxShadow = '-2px 2px 4px rgba(0, 0, 0, 0.15)';
+        sidebarStyle.boxShadow = '-4px 0px 24px rgba(0, 0, 0, 0.16)';
       }
     } else {
       rootProps.style.left = 0;
@@ -215,14 +216,15 @@ class Sidebar extends React.Component {
       sidebarStyle.transform = 'translate3d(-100%, 0, 0)';
       sidebarStyle.WebkitTransform = 'translate3d(-100%, 0, 0)';
       if (this.props.shadow) {
-        sidebarStyle.boxShadow = '2px 2px 4px rgba(0, 0, 0, 0.15)';
+        sidebarStyle.boxShadow = '4px 0px 24px rgba(0, 0, 0, 0.16)';
       }
     }
 
     if (isTouching) {
       const percentage = this.touchSidebarWidth() / this.props.width;
 
-      // slide open to what we dragged
+      // slide open to what we dragged (and ensure visibility)
+      sidebarStyle.visibility = 'visible';
       if (this.props.pullRight) {
         sidebarStyle.transform = `translate3d(${(1 - percentage) * 100}%, 0, 0)`;
         sidebarStyle.WebkitTransform = `translate3d(${(1 - percentage) * 100}%, 0, 0)`;
@@ -237,11 +239,13 @@ class Sidebar extends React.Component {
     } else if (this.props.docked) {
       // show sidebar
       if (this.props.width !== 0) {
+        sidebarStyle.visibility = 'visible';
         sidebarStyle.transform = `translate3d(0%, 0, 0)`;
         sidebarStyle.WebkitTransform = `translate3d(0%, 0, 0)`;
       }
     } else if (this.props.open) {
       // slide open sidebar
+      sidebarStyle.visibility = 'visible';
       sidebarStyle.transform = `translate3d(0%, 0, 0)`;
       sidebarStyle.WebkitTransform = `translate3d(0%, 0, 0)`;
 
