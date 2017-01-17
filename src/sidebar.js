@@ -204,16 +204,16 @@ class Sidebar extends React.Component {
     if (this.props.pullRight) {
       rootProps.style.right = 0;
       sidebarStyle.right = 0;
-      sidebarStyle.transform = 'translateX(100%)';
-      sidebarStyle.WebkitTransform = 'translateX(100%)';
+      sidebarStyle.transform = 'translate3d(100%, 0, 0)';
+      sidebarStyle.WebkitTransform = 'translate3d(100%, 0, 0)';
       if (this.props.shadow) {
         sidebarStyle.boxShadow = '-2px 2px 4px rgba(0, 0, 0, 0.15)';
       }
     } else {
       rootProps.style.left = 0;
       sidebarStyle.left = 0;
-      sidebarStyle.transform = 'translateX(-100%)';
-      sidebarStyle.WebkitTransform = 'translateX(-100%)';
+      sidebarStyle.transform = 'translate3d(-100%, 0, 0)';
+      sidebarStyle.WebkitTransform = 'translate3d(-100%, 0, 0)';
       if (this.props.shadow) {
         sidebarStyle.boxShadow = '2px 2px 4px rgba(0, 0, 0, 0.15)';
       }
@@ -224,11 +224,11 @@ class Sidebar extends React.Component {
 
       // slide open to what we dragged
       if (this.props.pullRight) {
-        sidebarStyle.transform = `translateX(${(1 - percentage) * 100}%)`;
-        sidebarStyle.WebkitTransform = `translateX(${(1 - percentage) * 100}%)`;
+        sidebarStyle.transform = `translate3d(${(1 - percentage) * 100}%, 0, 0)`;
+        sidebarStyle.WebkitTransform = `translate3d(${(1 - percentage) * 100}%, 0, 0)`;
       } else {
-        sidebarStyle.transform = `translateX(-${(1 - percentage) * 100}%)`;
-        sidebarStyle.WebkitTransform = `translateX(-${(1 - percentage) * 100}%)`;
+        sidebarStyle.transform = `translate3d(-${(1 - percentage) * 100}%, 0, 0)`;
+        sidebarStyle.WebkitTransform = `translate3d(-${(1 - percentage) * 100}%, 0, 0)`;
       }
 
       // fade overlay to match distance of drag
@@ -237,13 +237,13 @@ class Sidebar extends React.Component {
     } else if (this.props.docked) {
       // show sidebar
       if (this.props.width !== 0) {
-        sidebarStyle.transform = `translateX(0%)`;
-        sidebarStyle.WebkitTransform = `translateX(0%)`;
+        sidebarStyle.transform = `translate3d(0%, 0, 0)`;
+        sidebarStyle.WebkitTransform = `translate3d(0%, 0, 0)`;
       }
     } else if (this.props.open) {
       // slide open sidebar
-      sidebarStyle.transform = `translateX(0%)`;
-      sidebarStyle.WebkitTransform = `translateX(0%)`;
+      sidebarStyle.transform = `translate3d(0%, 0, 0)`;
+      sidebarStyle.WebkitTransform = `translate3d(0%, 0, 0)`;
 
       // show overlay
       overlayStyle.opacity = 1;
