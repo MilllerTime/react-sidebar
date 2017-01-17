@@ -1,35 +1,23 @@
 import React from 'react';
-import ReactDOM from 'react-dom';
 
 const CANCEL_DISTANCE_ON_SCROLL = 20;
 
 const defaultStyles = {
   root: {
+    zIndex: 1000,
     position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    overflow: 'hidden',
+    top: 0
   },
   sidebar: {
     zIndex: 2,
-    position: 'absolute',
+    position: 'fixed',
+    WebkitOverflowScrolling: 'touch',
     top: 0,
     bottom: 0,
     transition: 'transform .3s ease-out',
     WebkitTransition: '-webkit-transform .3s ease-out',
     willChange: 'transform',
     overflowY: 'auto',
-  },
-  content: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    overflow: 'auto',
-    transition: 'left .3s ease-out, right .3s ease-out',
   },
   overlay: {
     zIndex: 1,
@@ -56,9 +44,6 @@ class Sidebar extends React.Component {
     super(props);
 
     this.state = {
-      // the detected width of the sidebar in pixels
-      sidebarWidth: 0,
-
       // keep track of touching params
       touchIdentifier: null,
       touchStartX: null,
@@ -81,14 +66,6 @@ class Sidebar extends React.Component {
     this.setState({
       dragSupported: typeof window === 'object' && 'ontouchstart' in window,
     });
-    this.saveSidebarWidth();
-  }
-
-  componentDidUpdate() {
-    // filter out the updates when we're touching
-    if (!this.isTouching()) {
-      this.saveSidebarWidth();
-    }
   }
 
   onTouchStart(ev) {
@@ -125,7 +102,7 @@ class Sidebar extends React.Component {
       // trigger a change to open if sidebar has been dragged beyond dragToggleDistance
       const touchWidth = this.touchSidebarWidth();
 
-      if (this.props.open && touchWidth < this.state.sidebarWidth - this.props.dragToggleDistance ||
+      if (this.props.open && touchWidth < this.props.width - this.props.dragToggleDistance ||
           !this.props.open && touchWidth > this.props.dragToggleDistance) {
         this.props.onSetOpen(!this.props.open);
       }
@@ -179,41 +156,36 @@ class Sidebar extends React.Component {
     }
   }
 
-  saveSidebarWidth() {
-    const width = ReactDOM.findDOMNode(this.refs.sidebar).offsetWidth;
-
-    if (width !== this.state.sidebarWidth) {
-      this.setState({sidebarWidth: width});
-    }
-  }
-
   // calculate the sidebarWidth based on current touch info
   touchSidebarWidth() {
     // if the sidebar is open and start point of drag is inside the sidebar
     // we will only drag the distance they moved their finger
     // otherwise we will move the sidebar to be below the finger.
-    if (this.props.pullRight) {
-      if (this.props.open && window.innerWidth - this.state.touchStartX < this.state.sidebarWidth) {
-        if (this.state.touchCurrentX > this.state.touchStartX) {
-          return this.state.sidebarWidth + this.state.touchStartX - this.state.touchCurrentX;
+
+    const { pullRight, open, width } = this.props;
+    const { touchStartX, touchCurrentX } = this.state;
+
+    if (pullRight) {
+      if (open && window.innerWidth - touchStartX < width) {
+        if (touchCurrentX > touchStartX) {
+          return width + touchStartX - touchCurrentX;
         }
-        return this.state.sidebarWidth;
+        return width;
       }
-      return Math.min(window.innerWidth - this.state.touchCurrentX, this.state.sidebarWidth);
+      return Math.min(window.innerWidth - touchCurrentX, width);
     }
 
-    if (this.props.open && this.state.touchStartX < this.state.sidebarWidth) {
-      if (this.state.touchCurrentX > this.state.touchStartX) {
-        return this.state.sidebarWidth;
+    if (open && touchStartX < width) {
+      if (touchCurrentX > touchStartX) {
+        return width;
       }
-      return this.state.sidebarWidth - this.state.touchStartX + this.state.touchCurrentX;
+      return width - touchStartX + touchCurrentX;
     }
-    return Math.min(this.state.touchCurrentX, this.state.sidebarWidth);
+    return Math.min(touchCurrentX, width);
   }
 
   render() {
     const sidebarStyle = {...defaultStyles.sidebar, ...this.props.styles.sidebar};
-    const contentStyle = {...defaultStyles.content, ...this.props.styles.content};
     const overlayStyle = {...defaultStyles.overlay, ...this.props.styles.overlay};
     const useTouch = this.state.dragSupported && this.props.touch;
     const isTouching = this.isTouching();
@@ -223,8 +195,14 @@ class Sidebar extends React.Component {
     };
     let dragHandle;
 
+    // enable/disable pointer events on overlay (when closed, events should pass through)
+    if (!this.props.open) {
+      overlayStyle.pointerEvents = 'none';
+    }
+
     // sidebarStyle right/left
     if (this.props.pullRight) {
+      rootProps.style.right = 0;
       sidebarStyle.right = 0;
       sidebarStyle.transform = 'translateX(100%)';
       sidebarStyle.WebkitTransform = 'translateX(100%)';
@@ -232,6 +210,7 @@ class Sidebar extends React.Component {
         sidebarStyle.boxShadow = '-2px 2px 4px rgba(0, 0, 0, 0.15)';
       }
     } else {
+      rootProps.style.left = 0;
       sidebarStyle.left = 0;
       sidebarStyle.transform = 'translateX(-100%)';
       sidebarStyle.WebkitTransform = 'translateX(-100%)';
@@ -241,7 +220,7 @@ class Sidebar extends React.Component {
     }
 
     if (isTouching) {
-      const percentage = this.touchSidebarWidth() / this.state.sidebarWidth;
+      const percentage = this.touchSidebarWidth() / this.props.width;
 
       // slide open to what we dragged
       if (this.props.pullRight) {
@@ -257,16 +236,9 @@ class Sidebar extends React.Component {
       overlayStyle.visibility = 'visible';
     } else if (this.props.docked) {
       // show sidebar
-      if (this.state.sidebarWidth !== 0) {
+      if (this.props.width !== 0) {
         sidebarStyle.transform = `translateX(0%)`;
         sidebarStyle.WebkitTransform = `translateX(0%)`;
-      }
-
-      // make space on the left/right side of the content for the sidebar
-      if (this.props.pullRight) {
-        contentStyle.right = `${this.state.sidebarWidth}px`;
-      } else {
-        contentStyle.left = `${this.state.sidebarWidth}px`;
       }
     } else if (this.props.open) {
       // slide open sidebar
@@ -281,7 +253,6 @@ class Sidebar extends React.Component {
     if (isTouching || !this.props.transitions) {
       sidebarStyle.transition = 'none';
       sidebarStyle.WebkitTransition = 'none';
-      contentStyle.transition = 'none';
       overlayStyle.transition = 'none';
     }
 
@@ -312,7 +283,7 @@ class Sidebar extends React.Component {
 
     return (
       <div {...rootProps}>
-        <div className={this.props.sidebarClassName} style={sidebarStyle} ref="sidebar">
+        <div className={this.props.sidebarClassName} style={sidebarStyle}>
           {this.props.sidebar}
         </div>
         <div className={this.props.overlayClassName}
@@ -321,24 +292,17 @@ class Sidebar extends React.Component {
              tabIndex="0"
              onClick={this.overlayClicked}
           />
-        <div className={this.props.contentClassName} style={contentStyle}>
-          {dragHandle}
-          {this.props.children}
-        </div>
+        {dragHandle}
       </div>
     );
   }
 }
 
 Sidebar.propTypes = {
-  // main content to render
-  children: React.PropTypes.node.isRequired,
-
   // styles
   styles: React.PropTypes.shape({
     root: React.PropTypes.object,
     sidebar: React.PropTypes.object,
-    content: React.PropTypes.object,
     overlay: React.PropTypes.object,
     dragHandle: React.PropTypes.object,
   }),
@@ -349,14 +313,14 @@ Sidebar.propTypes = {
   // sidebar optional class
   sidebarClassName: React.PropTypes.string,
 
-  // content optional class
-  contentClassName: React.PropTypes.string,
-
   // overlay optional class
   overlayClassName: React.PropTypes.string,
 
   // sidebar content to render
   sidebar: React.PropTypes.node.isRequired,
+
+  // width of sidebar
+  width: React.PropTypes.number,
 
   // boolean if sidebar should be docked
   docked: React.PropTypes.bool,
@@ -387,6 +351,7 @@ Sidebar.propTypes = {
 };
 
 Sidebar.defaultProps = {
+  width: 300,
   docked: false,
   open: false,
   transitions: true,

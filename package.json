@@ -1,9 +1,9 @@
 {
   "name": "react-sidebar",
-  "version": "2.2.2",
+  "version": "2.2.3",
   "author": "Caleb Miller <caleb@caleb-miller.com>",
   "description": "A sidebar component for React.",
-  "main": "dist-modules/index.js",
+  "main": "src/index.js",
   "jsnest:main": "src/index.js",
   "scripts": {
     "build": "babel src --out-dir dist-modules && webpack --colors --progress -p",
