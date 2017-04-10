@@ -1,9 +1,9 @@
 {
   "name": "react-sidebar",
-  "version": "3.0.0",
+  "version": "3.0.1",
   "author": "Caleb Miller <caleb@caleb-miller.com>",
   "description": "A sidebar component for React. Forked from github.com/balloob/react-sidebar.",
-  "main": "src/index.js",
+  "main": "dist-modules/index.js",
   "jsnest:main": "src/index.js",
   "scripts": {
     "build": "babel src --out-dir dist-modules && webpack --colors --progress -p",
