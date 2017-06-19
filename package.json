@@ -1,6 +1,6 @@
 {
   "name": "react-sidebar",
-  "version": "3.0.1",
+  "version": "3.0.2",
   "author": "Caleb Miller <caleb@caleb-miller.com>",
   "description": "A sidebar component for React. Forked from github.com/balloob/react-sidebar.",
   "main": "dist-modules/index.js",
