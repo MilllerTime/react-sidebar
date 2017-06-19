@@ -14,6 +14,10 @@ var _react = require('react');
 
 var _react2 = _interopRequireDefault(_react);
 
+var _propTypes = require('prop-types');
+
+var _propTypes2 = _interopRequireDefault(_propTypes);
+
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
 function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
@@ -421,51 +425,51 @@ var Sidebar = function (_React$Component) {
 
 Sidebar.propTypes = {
   // styles
-  styles: _react2.default.PropTypes.shape({
-    root: _react2.default.PropTypes.object,
-    sidebar: _react2.default.PropTypes.object,
-    overlay: _react2.default.PropTypes.object,
-    dragHandle: _react2.default.PropTypes.object
+  styles: _propTypes2.default.shape({
+    root: _propTypes2.default.object,
+    sidebar: _propTypes2.default.object,
+    overlay: _propTypes2.default.object,
+    dragHandle: _propTypes2.default.object
   }),
 
   // root component optional class
-  rootClassName: _react2.default.PropTypes.string,
+  rootClassName: _propTypes2.default.string,
 
   // sidebar optional class
-  sidebarClassName: _react2.default.PropTypes.string,
+  sidebarClassName: _propTypes2.default.string,
 
   // overlay optional class
-  overlayClassName: _react2.default.PropTypes.string,
+  overlayClassName: _propTypes2.default.string,
 
   // sidebar content to render
-  sidebar: _react2.default.PropTypes.node.isRequired,
+  sidebar: _propTypes2.default.node.isRequired,
 
   // width of sidebar
-  width: _react2.default.PropTypes.number,
+  width: _propTypes2.default.number,
 
   // boolean if sidebar should slide open
-  open: _react2.default.PropTypes.bool,
+  open: _propTypes2.default.bool,
 
   // boolean if transitions should be disabled
-  transitions: _react2.default.PropTypes.bool,
+  transitions: _propTypes2.default.bool,
 
   // boolean if touch gestures are enabled
-  touch: _react2.default.PropTypes.bool,
+  touch: _propTypes2.default.bool,
 
   // max distance from the edge we can start touching
-  touchHandleWidth: _react2.default.PropTypes.number,
+  touchHandleWidth: _propTypes2.default.number,
 
   // Place the sidebar on the right
-  pullRight: _react2.default.PropTypes.bool,
+  pullRight: _propTypes2.default.bool,
 
   // Enable/Disable sidebar shadow
-  shadow: _react2.default.PropTypes.bool,
+  shadow: _propTypes2.default.bool,
 
   // distance we have to drag the sidebar to toggle open state
-  dragToggleDistance: _react2.default.PropTypes.number,
+  dragToggleDistance: _propTypes2.default.number,
 
   // callback called when the overlay is clicked
-  onSetOpen: _react2.default.PropTypes.func
+  onSetOpen: _propTypes2.default.func
 };
 
 Sidebar.defaultProps = {
