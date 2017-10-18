@@ -311,6 +311,13 @@ class Sidebar extends React.Component {
         sidebarStyle.WebkitTransform = `translate3d(-${(1 - percentage) * 100}%, 0, 0)`;
       }
 
+      // Disable scrolling once user has committed to dragging sidebar.
+      // Used in conjunction with event.preventDefault in touchmove handler because chrome ignores it.
+      // If we can avoid passive events then this will no longer be needed, but React doesn't currently allow that.
+      if (this.state.dragLock) {
+        rootProps.style.touchAction = 'none';
+      }
+
       // fade overlay to match distance of drag
       overlayStyle.opacity = percentage;
       overlayStyle.visibility = 'visible';
