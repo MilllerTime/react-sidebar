@@ -273,7 +273,7 @@ class Sidebar extends React.Component {
     let dragHandle;
 
     // enable/disable pointer events on overlay (when closed, events should pass through)
-    if (!this.props.open) {
+    if (!this.props.open && !this.state.dragLock) {
       overlayStyle.pointerEvents = 'none';
     }
 
