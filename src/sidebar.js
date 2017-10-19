@@ -13,7 +13,20 @@ const defaultStyles = {
   root: {
     zIndex: 1000,
     position: 'absolute',
-    top: 0
+    top: 0,
+    // Adding `touchAction: none` to the `root` is a hack to disable scrolling for Chrome on Android.
+    // We used to just call `event.preventDefault()` in the `touchmove` handler while dragging, but Chrome's
+    // default passive events no longer allow that. This hack works because in `render` we use
+    // `pointerEvents: none` to allow touches to pass through to the app when the drawer is inactive.
+    // So `touchAction` has no effect until the drawer is opened or user is dragging it, per that logic.
+    // The downside is that vertical swipes on the drag handle don't trigger scrolling, even through we cancel
+    // the drag due to the vertical gesture.
+    //
+    // Removing this `touchAction` property and using `event.preventDefault()`
+    // is ideal, as soon as we can declaratively bind non-passive touch events with React.
+    //
+    // There is a tracking issue: https://github.com/facebook/react/issues/6436
+    touchAction: 'none'
   },
   sidebar: {
     zIndex: 2,
@@ -273,6 +286,7 @@ class Sidebar extends React.Component {
     let dragHandle;
 
     // enable/disable pointer events on overlay (when closed, events should pass through)
+    // This has the effect of disabling scrolling once user has committed to dragging the sidebar, or the sidebar is open.
     if (!this.props.open && !this.state.dragLock) {
       overlayStyle.pointerEvents = 'none';
     }
@@ -309,13 +323,6 @@ class Sidebar extends React.Component {
       else {
         sidebarStyle.transform = `translate3d(-${(1 - percentage) * 100}%, 0, 0)`;
         sidebarStyle.WebkitTransform = `translate3d(-${(1 - percentage) * 100}%, 0, 0)`;
-      }
-
-      // Disable scrolling once user has committed to dragging sidebar.
-      // Used in conjunction with event.preventDefault in touchmove handler because chrome ignores it.
-      // If we can avoid passive events then this will no longer be needed, but React doesn't currently allow that.
-      if (this.state.dragLock) {
-        rootProps.style.touchAction = 'none';
       }
 
       // fade overlay to match distance of drag
