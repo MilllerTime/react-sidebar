@@ -79,6 +79,7 @@ var defaultStyles = {
     transitionProperty: 'opacity, visibility',
     transitionDuration: DURATION + 's',
     transitionTimingFunction: 'ease-out',
+    willChange: 'opacity',
     backgroundColor: 'rgba(0,0,0,.3)'
   },
   dragHandle: {
