@@ -13,20 +13,7 @@ const defaultStyles = {
   root: {
     zIndex: 1000,
     position: 'absolute',
-    top: 0,
-    // Adding `touchAction: none` to the `root` is a hack to disable scrolling for Chrome on Android.
-    // We used to just call `event.preventDefault()` in the `touchmove` handler while dragging, but Chrome's
-    // default passive events no longer allow that. This hack works because in `render` we use
-    // `pointerEvents: none` to allow touches to pass through to the app when the drawer is inactive.
-    // So `touchAction` has no effect until the drawer is opened or user is dragging it, per that logic.
-    // The downside is that vertical swipes on the drag handle don't trigger scrolling, even through we cancel
-    // the drag due to the vertical gesture.
-    //
-    // Removing this `touchAction` property and using `event.preventDefault()`
-    // is ideal, as soon as we can declaratively bind non-passive touch events with React.
-    //
-    // There is a tracking issue: https://github.com/facebook/react/issues/6436
-    touchAction: 'none'
+    top: 0
   },
   sidebar: {
     zIndex: 2,
@@ -285,12 +272,6 @@ class Sidebar extends React.Component {
       style: {...defaultStyles.root, ...this.props.styles.root}
     };
     let dragHandle;
-
-    // enable/disable pointer events on overlay (when closed, events should pass through)
-    // This has the effect of disabling scrolling once user has committed to dragging the sidebar, or the sidebar is open.
-    if (!this.props.open && !this.state.dragLock) {
-      overlayStyle.pointerEvents = 'none';
-    }
 
     // sidebarStyle right/left
     if (this.props.pullRight) {
